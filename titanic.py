@@ -21,9 +21,13 @@ from sklearn.tree import DecisionTreeClassifier
 from sklearn.metrics import make_scorer, accuracy_score
 from sklearn.model_selection import GridSearchCV
 from sklearn.model_selection import train_test_split
+import xgboost as xgb
 
 training = pd.read_csv("train.csv")
 testing = pd.read_csv("test.csv")
+
+#sibsp(sibling=kardeş ve spouse=eş)
+#parch(parent=ebeveyn ve child=cocuk)
 
 print(training.head())
 print(testing.head())
@@ -31,10 +35,14 @@ print(training.keys())
 print(testing.keys())
 print(training.describe())
 
-print("Training")
+print("Training Kayıp Veri Sayısı")
 print(pd.isnull(training).sum())
-print("Testing")
+print("Testing Kayıp Veri Sayısı")
 print(pd.isnull(testing).sum())
+
+print(training.shape)
+print(training.info())
+print(training.describe())
 
 training.drop(labels = ["Cabin", "Ticket"], axis = 1, inplace = True)
 testing.drop(labels = ["Cabin", "Ticket"], axis = 1, inplace = True)
@@ -45,7 +53,12 @@ training["Embarked"].fillna("S", inplace = True)
 testing["Fare"].fillna(testing["Fare"].median(), inplace = True)
 
 #Cinsiyet(Sex)
-sns.barplot(x="Sex", y="Survived", data=training)
+f,ax=plt.subplots(1,2,figsize=(18,8))
+training['Survived'].value_counts().plot.pie(explode=[0,0.1],autopct='%1.1f%%',ax=ax[0],shadow=True)
+ax[0].set_title('Survived')
+ax[0].set_ylabel('')
+sns.countplot('Sex',hue='Survived',data=training,ax=ax[1])
+ax[1].set_title('Survived')
 plt.title("Cinsiyete Göre Hayatta Kalma Dağılımı")
 plt.show()
 toplam_yasayan_kadın = training[training.Sex == "female"]["Survived"].sum()
@@ -57,8 +70,7 @@ print("Hayatta Kalan Erkek Oranı:")
 print(toplam_yasayan_erkek/(toplam_yasayan_kadın + toplam_yasayan_erkek))
 
 #Sınıf(Pclass)
-sns.barplot(x="Pclass", y="Survived", data=training)
-plt.ylabel("Survival Rate")
+sns.countplot('Pclass', hue='Survived', data=training)
 plt.title("Sınıfa Göre Hayatta Kalma Dağılımı")
 plt.show()
 toplam_yasayan_bir = training[training.Pclass == 1]["Survived"].sum()
@@ -72,9 +84,9 @@ print("2.Sınıftaki Yolcuların Hayatta Kalma Oranı:")
 print(toplam_yasayan_iki/toplam_yasayan_sinif)
 print("3.Sınıftaki Yolcuların Hayatta Kalma Oranı:")
 print(toplam_yasayan_uc/toplam_yasayan_sinif)
-sns.barplot(x="Pclass", y="Survived", hue="Sex", data=training)
-plt.ylabel("Survival Rate")
+sns.countplot("Pclass", hue="Sex", data=training)
 plt.title("Cinsiyet ve Sınıfa Göre Yaşama Oranları")
+plt.show()
 
 #Yaş(Age)
 yasayan_ages = training[training.Survived == 1]["Age"]
@@ -88,6 +100,43 @@ sns.distplot(yasamayan_ages, kde=False)
 plt.axis([0, 100, 0, 100])
 plt.title("Hayatta Kalamayanlar")
 plt.subplots_adjust()
+plt.show()
+
+#Scatterplot Pclass, Age, Fare, Survived
+g = sns.FacetGrid(training, hue="Survived", col="Pclass", margin_titles=True,
+                  palette={1:"green", 0:"black"})
+g=g.map(plt.scatter, "Fare", "Age",edgecolor="w").add_legend()
+training.plot(kind='scatter', x='Age', y='Fare',alpha = 0.5,color = 'red')
+plt.show()
+
+#Box Age, Pclass
+ax= sns.boxplot(x="Pclass", y="Age", data=training)
+ax= sns.stripplot(x="Pclass", y="Age", data=training, jitter=True, edgecolor="gray")
+plt.show()
+
+#Histogram
+training.hist(figsize=(15,20))
+plt.show()
+
+#kdeplot
+sns.FacetGrid(training, hue="Survived", size=5).map(sns.kdeplot, "Fare").add_legend()
+plt.show()
+
+#jointplot Fare, Age
+sns.jointplot(x='Fare',y='Age',data=training)
+plt.show()
+
+#Swarmplot
+sns.swarmplot(x='Pclass',y='Age',data=training)
+plt.show()
+
+#Factorplot
+sns.factorplot('Pclass','Survived',hue='Sex',data=training)
+plt.show()
+f,ax=plt.subplots(1,2,figsize=(20,8))
+sns.barplot('SibSp','Survived', data=training, ax=ax[0])
+sns.factorplot('SibSp','Survived', data=training, ax=ax[1])
+plt.close(2)
 plt.show()
 
 #Sex ve Embarked sütunlarını sayısal değere çevirme
@@ -198,6 +247,13 @@ y_pred = logreg.predict(x_val)
 acc_logreg = round(accuracy_score(y_pred, y_val) * 100, 2)
 print(acc_logreg)
 
+#XGBoost
+xgboost = xgb.XGBClassifier(max_depth=5, n_estimators=500, learning_rate=0.01)
+xgboost.fit(x_train, y_train)
+y_pred = xgboost.predict(x_val)
+acc_xgboost = round(accuracy_score(y_pred, y_val) * 100, 2)
+print(acc_xgboost)
+
 # Support Vector Machines
 svc = SVC()
 svc.fit(x_train, y_train)
@@ -248,17 +304,21 @@ acc_sgd = round(accuracy_score(y_pred, y_val) * 100, 2)
 print(acc_sgd)
 
 # Gradient Boosting Classifier
-gbc = GradientBoostingClassifier()
+gbc = GradientBoostingClassifier(loss='deviance', learning_rate=0.1, n_estimators=100, subsample=1.0, criterion='friedman_mse', 
+                                min_samples_split=2, min_samples_leaf=1, min_weight_fraction_leaf=0.0, max_depth=3, 
+                                min_impurity_decrease=0.0, min_impurity_split=None, init=None, random_state=None, max_features=None, 
+                                verbose=0, max_leaf_nodes=None, warm_start=False, presort='auto', validation_fraction=0.1, 
+                                n_iter_no_change=None, tol=0.0001)
 gbc.fit(x_train, y_train)
 y_pred = gbc.predict(x_val)
 acc_gbc = round(accuracy_score(y_pred, y_val) * 100, 2)
 print(acc_gbc)
 
 models = pd.DataFrame({
-    'Model': ['Support Vector Machines', 'KNN', 'Logistic Regression', 
+    'Model': ['Support Vector Machines', 'KNN', 'Logistic Regression', 'XGBoost', 
               'Random Forest', 'Naive Bayes', 'Perceptron', 'Linear SVC', 
               'Decision Tree', 'Stochastic Gradient Descent', 'Gradient Boosting Classifier'],
-    'Score': [acc_svc, acc_knn, acc_logreg, 
+    'Score': [acc_svc, acc_knn, acc_logreg, acc_xgboost,
               acc_randomforest, acc_gaussian, acc_perceptron, acc_linear_svc, acc_decisiontree,
               acc_sgd, acc_gbc]})
 print(models.sort_values(by='Score', ascending=False))
