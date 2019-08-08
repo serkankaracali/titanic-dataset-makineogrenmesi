@@ -21,7 +21,8 @@ from sklearn.tree import DecisionTreeClassifier
 from sklearn.metrics import make_scorer, accuracy_score
 from sklearn.model_selection import GridSearchCV
 from sklearn.model_selection import train_test_split
-import xgboost as xgb
+from sklearn.metrics import mean_absolute_error
+from xgboost import XGBClassifier
 
 training = pd.read_csv("train.csv")
 testing = pd.read_csv("test.csv")
@@ -44,9 +45,13 @@ print(training.shape)
 print(training.info())
 print(training.describe())
 
+sns.heatmap(training.isnull(),yticklabels=False,cbar=False)
+plt.show()
+
 training.drop(labels = ["Cabin", "Ticket"], axis = 1, inplace = True)
 testing.drop(labels = ["Cabin", "Ticket"], axis = 1, inplace = True)
 
+#Boşları doldurma
 training["Age"].fillna(training["Age"].median(), inplace = True)
 testing["Age"].fillna(testing["Age"].median(), inplace = True) 
 training["Embarked"].fillna("S", inplace = True)
@@ -119,7 +124,7 @@ training.hist(figsize=(15,20))
 plt.show()
 
 #kdeplot
-sns.FacetGrid(training, hue="Survived", size=5).map(sns.kdeplot, "Fare").add_legend()
+sns.FacetGrid(training, hue="Survived", height=5).map(sns.kdeplot, "Fare").add_legend()
 plt.show()
 
 #jointplot Fare, Age
@@ -130,14 +135,16 @@ plt.show()
 sns.swarmplot(x='Pclass',y='Age',data=training)
 plt.show()
 
-#Factorplot
-sns.factorplot('Pclass','Survived',hue='Sex',data=training)
+#Catplot
+sns.catplot('Pclass','Survived',hue='Sex',data=training, kind="point")
 plt.show()
 f,ax=plt.subplots(1,2,figsize=(20,8))
 sns.barplot('SibSp','Survived', data=training, ax=ax[0])
-sns.factorplot('SibSp','Survived', data=training, ax=ax[1])
+sns.catplot('SibSp','Survived', data=training, kind="point", ax=ax[1])
 plt.close(2)
 plt.show()
+
+
 
 #Sex ve Embarked sütunlarını sayısal değere çevirme
 label_sex = LabelEncoder()
@@ -238,70 +245,71 @@ gaussian = GaussianNB()
 gaussian.fit(x_train, y_train)
 y_pred = gaussian.predict(x_val)
 acc_gaussian = round(accuracy_score(y_pred, y_val) * 100, 2)
-print(acc_gaussian)
+print("Gaussian Naive Bayes = " + str(acc_gaussian))
 
 # Logistic Regression
-logreg = LogisticRegression()
+logreg = LogisticRegression(solver='lbfgs')
 logreg.fit(x_train, y_train)
 y_pred = logreg.predict(x_val)
 acc_logreg = round(accuracy_score(y_pred, y_val) * 100, 2)
-print(acc_logreg)
+print("Logistic Regression = " + str(acc_logreg))
 
-#XGBoost
-xgboost = xgb.XGBClassifier(max_depth=5, n_estimators=500, learning_rate=0.01)
+#XGBoost Classifier
+xgboost = XGBClassifier(max_depth=5, n_estimators=500, learning_rate=0.01)
 xgboost.fit(x_train, y_train)
 y_pred = xgboost.predict(x_val)
 acc_xgboost = round(accuracy_score(y_pred, y_val) * 100, 2)
-print(acc_xgboost)
+print("XGBoostClassifier = " + str(acc_xgboost))
+
 
 # Support Vector Machines
-svc = SVC()
+svc = SVC(gamma='scale')
 svc.fit(x_train, y_train)
 y_pred = svc.predict(x_val)
 acc_svc = round(accuracy_score(y_pred, y_val) * 100, 2)
-print(acc_svc)
+print("Support Vector Machines = " + str(acc_svc))
 
 # Linear SVC
-linear_svc = LinearSVC()
+linear_svc = LinearSVC(max_iter=5000)
 linear_svc.fit(x_train, y_train)
 y_pred = linear_svc.predict(x_val)
 acc_linear_svc = round(accuracy_score(y_pred, y_val) * 100, 2)
-print(acc_linear_svc)
+print("Linear SVC = " + str(acc_linear_svc))
 
 # Perceptron
 perceptron = Perceptron()
 perceptron.fit(x_train, y_train)
 y_pred = perceptron.predict(x_val)
 acc_perceptron = round(accuracy_score(y_pred, y_val) * 100, 2)
-print(acc_perceptron)
+print("Perceptron = " + str(acc_perceptron))
 
 #Decision Tree
 decisiontree = DecisionTreeClassifier()
 decisiontree.fit(x_train, y_train)
 y_pred = decisiontree.predict(x_val)
 acc_decisiontree = round(accuracy_score(y_pred, y_val) * 100, 2)
-print(acc_decisiontree)
+print("Decision Tree = " + str(acc_decisiontree))
 
 # Random Forest
-randomforest = RandomForestClassifier()
+randomforest = RandomForestClassifier(n_estimators=100)
 randomforest.fit(x_train, y_train)
 y_pred = randomforest.predict(x_val)
 acc_randomforest = round(accuracy_score(y_pred, y_val) * 100, 2)
-print(acc_randomforest)
+print("Random Forest = " + str(acc_randomforest))
 
 # KNN or k-Nearest Neighbors
 knn = KNeighborsClassifier()
 knn.fit(x_train, y_train)
 y_pred = knn.predict(x_val)
 acc_knn = round(accuracy_score(y_pred, y_val) * 100, 2)
-print(acc_knn)
+print("KNN = " + str(acc_knn))
 
 # Stochastic Gradient Descent
 sgd = SGDClassifier()
 sgd.fit(x_train, y_train)
 y_pred = sgd.predict(x_val)
 acc_sgd = round(accuracy_score(y_pred, y_val) * 100, 2)
-print(acc_sgd)
+print("Stochastic Gradient Descent = " + str(acc_sgd))
 
 # Gradient Boosting Classifier
 gbc = GradientBoostingClassifier(loss='deviance', learning_rate=0.1, n_estimators=100, subsample=1.0, criterion='friedman_mse', 
@@ -312,7 +320,9 @@ gbc = GradientBoostingClassifier(loss='deviance', learning_rate=0.1, n_estimator
 gbc.fit(x_train, y_train)
 y_pred = gbc.predict(x_val)
 acc_gbc = round(accuracy_score(y_pred, y_val) * 100, 2)
-print(acc_gbc)
+score = mean_absolute_error(y_val, y_pred)
+print("Gradient Boosting Classifier = " + str(acc_gbc))
+print("Skor = " + str(score))
 
 models = pd.DataFrame({
     'Model': ['Support Vector Machines', 'KNN', 'Logistic Regression', 'XGBoost', 
